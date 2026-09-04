@@ -6218,7 +6218,7 @@ void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rf
 	RTW_INFO(FUNC_ADPT_FMT": freq(%d, %d)\n", FUNC_ADPT_ARG(padapter), freq);
 #endif
 
-#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
+#if defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH) || (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
 	params.action = EXTERNAL_AUTH_START;
 	_rtw_memcpy(params.bssid, get_my_bssid(&pmlmeinfo->network), ETH_ALEN);
 	params.ssid.ssid_len = pmlmeinfo->network.Ssid.SsidLength;
@@ -9849,7 +9849,7 @@ int rtw_hostapd_acs_dump_survey(struct wiphy *wiphy, struct net_device *netdev, 
 }
 #endif /* defined(CONFIG_RTW_HOSTAPD_ACS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)) */
 
-#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
+#if defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH) || (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
 int cfg80211_rtw_external_auth(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_external_auth_params *params)
 {
@@ -10057,7 +10057,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 #if defined(CONFIG_RTW_HOSTAPD_ACS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33))
 	.dump_survey = rtw_hostapd_acs_dump_survey,
 #endif
-#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
+#if defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH) || (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
 	.external_auth = cfg80211_rtw_external_auth,
 #endif
 };
