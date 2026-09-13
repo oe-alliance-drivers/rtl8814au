@@ -3841,6 +3841,22 @@ static int _rtw_disconnect(struct wiphy *wiphy, struct net_device *ndev)
 	return 0;
 }
 
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE) \
+    && defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
+/* The external auth API comes from a cfg80211 backport the running kernel
+ * may lack, so it is looked up at runtime instead of linked against. */
+static bool rtw_cfg80211_ext_auth_available(void)
+{
+	typeof(&cfg80211_external_auth_request) fn;
+
+	fn = symbol_get(cfg80211_external_auth_request);
+	if (!fn)
+		return false;
+	symbol_put(cfg80211_external_auth_request);
+	return true;
+}
+#endif
+
 #if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE)
 static bool rtw_check_connect_sae_compat(struct cfg80211_connect_params *sme)
 {
@@ -6209,6 +6225,10 @@ void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rf
 	u8 frame[256] = { 0 };
 	uint frame_len = 24;
 	s32 freq = 0;
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE) \
+    && defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
+	typeof(&cfg80211_external_auth_request) ext_auth;
+#endif
 
 	/* rframe, in this case is null point */
 
@@ -6226,9 +6246,21 @@ void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rf
 		pmlmeinfo->network.Ssid.SsidLength);
 	params.key_mgmt_suite = 0x8ac0f00;
 
+#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
 	cfg80211_external_auth_request(netdev,
 		(struct cfg80211_external_auth_params *)&params, GFP_ATOMIC);
-#elif (KERNEL_VERSION(2, 6, 37) <= LINUX_VERSION_CODE)
+#else
+	ext_auth = symbol_get(cfg80211_external_auth_request);
+	if (ext_auth) {
+		ext_auth(netdev,
+			(struct cfg80211_external_auth_params *)&params, GFP_ATOMIC);
+		symbol_put(cfg80211_external_auth_request);
+		return;
+	}
+#endif
+#endif
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE) \
+    && (KERNEL_VERSION(2, 6, 37) <= LINUX_VERSION_CODE)
 	set_frame_sub_type(frame, WIFI_AUTH);
 
 	_rtw_memcpy(frame + 4, get_my_bssid(&pmlmeinfo->network), ETH_ALEN);
@@ -9673,7 +9705,11 @@ static void rtw_cfg80211_preinit_wiphy(_adapter *adapter, struct wiphy *wiphy)
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)) */
 #endif /* CONFIG_RTW_MESH */
 
-#if (KERNEL_VERSION(3, 8, 0) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE) \
+    && defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
+	if (rtw_cfg80211_ext_auth_available())
+		wiphy->features |= NL80211_FEATURE_SAE;
+#elif (KERNEL_VERSION(3, 8, 0) <= LINUX_VERSION_CODE)
 	wiphy->features |= NL80211_FEATURE_SAE;
 #endif
 }
